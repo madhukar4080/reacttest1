@@ -2,11 +2,11 @@ trigger:
 - main
 
 variables:
-  azureSubscription: 'YOUR-SERVICE-CONNECTION'
-  webAppName: 'YOUR-REACT-WEBAPP-NAME'
+  azureSubscription: 'Azure subscription 1(1c29d824-9aa5-4286-9b2e-161e891c333f)'
+  webAppName: 'reacttest1'
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: Default
 
 stages:
 
@@ -50,7 +50,7 @@ stages:
   dependsOn: Build
   jobs:
   - deployment: DeployReact
-    environment: 'production'
+    environment: 'dev'
     strategy:
       runOnce:
         deploy:
