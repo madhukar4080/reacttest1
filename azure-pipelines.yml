@@ -1,0 +1,66 @@
+trigger:
+- main
+
+variables:
+  azureSubscription: 'YOUR-SERVICE-CONNECTION'
+  webAppName: 'YOUR-REACT-WEBAPP-NAME'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+# =========================
+# BUILD STAGE
+# =========================
+- stage: Build
+  displayName: 'Build React App'
+  jobs:
+  - job: Build
+    steps:
+
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        npm install
+        npm run build
+      displayName: 'Install dependencies & build'
+    
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: 'build'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/react-build.zip'
+        replaceExistingArchive: true
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+
+# =========================
+# DEPLOY STAGE
+# =========================
+- stage: Deploy
+  displayName: 'Deploy to Azure Web App'
+  dependsOn: Build
+  jobs:
+  - deployment: DeployReact
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webApp'
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)/drop/react-build.zip'
