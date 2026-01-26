@@ -28,7 +28,7 @@ stages:
         npm install
         npm run build
       displayName: 'Install dependencies & build'
-     workingDirectory: '$(Build.SourcesDirectory)' 
+      workingDirectory: '$(Build.SourcesDirectory)' 
     
     - task: ArchiveFiles@2
       inputs:
@@ -37,7 +37,6 @@ stages:
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/react-build.zip'
         replaceExistingArchive: true
-
   
     - task: PublishBuildArtifacts@1
       inputs:
