@@ -29,7 +29,13 @@ stages:
         npm run build
       displayName: 'Install dependencies & build'
       workingDirectory: '$(Build.SourcesDirectory)' 
-    
+    - script: |
+    echo "===== ROOT DIRECTORY ====="
+    dir $(Build.SourcesDirectory)
+    echo "===== RECURSIVE LIST ====="
+    dir $(Build.SourcesDirectory) /s
+  displayName: 'DEBUG: Show folder structure'
+
     - task: ArchiveFiles@2
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)\build'
@@ -65,3 +71,4 @@ stages:
               appType: 'webApp'
               appName: '$(webAppName)'
               package: '$(Pipeline.Workspace)/drop/react-build.zip'
+
