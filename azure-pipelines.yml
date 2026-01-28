@@ -8,7 +8,6 @@ variables:
 pool:
   name: Default
 
-  
 
 stages:
 
@@ -22,38 +21,48 @@ stages:
     displayName: 'Build'
     steps:
 
-    # Install Node.js
     - task: NodeTool@0
       inputs:
         versionSpec: '18.x'
       displayName: 'Install Node.js'
 
-    # Debug – show repo root (safe to keep or remove later)
-    - script: |
-        echo "===== REPO ROOT CONTENT ====="
-        dir $(Build.SourcesDirectory)
-      displayName: 'DEBUG: Show repo root'
+    # Locate React app, build it, and output build path
+    - powershell: |
+        Write-Host "Searching for package.json..."
+        $pkg = Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse -Filter package.json | Select-Object -First 1
 
-    # Install dependencies and build React app
-    - script: |
+        if (-not $pkg) {
+          Write-Error "package.json not found. This is not a React app repo."
+          exit 1
+        }
+
+        $appDir = $pkg.Directory.FullName
+        Write-Host "React app found at: $appDir"
+
+        Set-Location $appDir
         npm install
         npm run build
-        echo "===== BUILD OUTPUT ====="
-        dir
-      workingDirectory: '$(Build.SourcesDirectory)'
-      displayName: 'Install dependencies & build React app'
 
-    # Archive React build folder
+        $buildDir = Join-Path $appDir "build"
+        if (-not (Test-Path $buildDir)) {
+          Write-Error "React build folder not created."
+          exit 1
+        }
+
+        Write-Host "Build directory: $buildDir"
+        Write-Host "##vso[task.setvariable variable=REACT_BUILD_DIR]$buildDir"
+      displayName: 'Locate & build React app'
+
+    # Archive detected build folder
     - task: ArchiveFiles@2
       displayName: 'Archive React build'
       inputs:
-        rootFolderOrFile: '$(Build.SourcesDirectory)\build'
+        rootFolderOrFile: '$(REACT_BUILD_DIR)'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)\react-build.zip'
         replaceExistingArchive: true
 
-    # Publish build artifact
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifact'
       inputs:
@@ -68,18 +77,15 @@ stages:
   dependsOn: Build
   jobs:
   - deployment: DeployReact
-    displayName: 'Deploy React App'
     environment: 'production'
     strategy:
       runOnce:
         deploy:
           steps:
 
-          # Download artifact
           - download: current
             artifact: drop
 
-          # Deploy to Azure Web App
           - task: AzureWebApp@1
             displayName: 'Deploy to Azure Web App'
             inputs:
