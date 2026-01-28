@@ -17,34 +17,37 @@ stages:
   displayName: 'Build React App'
   jobs:
   - job: Build
+    displayName: 'Build'
     steps:
 
+    # Install Node.js
     - task: NodeTool@0
       inputs:
         versionSpec: '18.x'
       displayName: 'Install Node.js'
 
+    # Build React application
     - script: |
         npm install
         npm run build
-      displayName: 'Install dependencies & build'
-      workingDirectory: '$(Build.SourcesDirectory)' 
-    - script: |
-    echo "===== ROOT DIRECTORY ====="
-    dir $(Build.SourcesDirectory)
-    echo "===== RECURSIVE LIST ====="
-    dir $(Build.SourcesDirectory) /s
-  displayName: 'DEBUG: Show folder structure'
+        echo "===== BUILD OUTPUT ====="
+        dir
+      workingDirectory: '$(Build.SourcesDirectory)\react-frontend-demo'
+      displayName: 'Install dependencies & build React app'
 
+    # Archive React build folder
     - task: ArchiveFiles@2
+      displayName: 'Archive React build'
       inputs:
-        rootFolderOrFile: '$(Build.SourcesDirectory)\build'
+        rootFolderOrFile: '$(Build.SourcesDirectory)\react-frontend-demo\build'
         includeRootFolder: false
         archiveType: 'zip'
-        archiveFile: '$(Build.ArtifactStagingDirectory)/react-build.zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)\react-build.zip'
         replaceExistingArchive: true
-  
+
+    # Publish build artifact
     - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifact'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'drop'
@@ -57,18 +60,22 @@ stages:
   dependsOn: Build
   jobs:
   - deployment: DeployReact
+    displayName: 'Deploy React App'
     environment: 'dev'
     strategy:
       runOnce:
         deploy:
           steps:
+
+          # Download artifact
           - download: current
             artifact: drop
 
+          # Deploy to Azure Web App
           - task: AzureWebApp@1
+            displayName: 'Deploy to Azure Web App'
             inputs:
               azureSubscription: '$(azureSubscription)'
               appType: 'webApp'
               appName: '$(webAppName)'
-              package: '$(Pipeline.Workspace)/drop/react-build.zip'
-
+              package: '$(Pipeline.Workspace)\drop\react-build.zip'
