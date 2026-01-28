@@ -8,6 +8,8 @@ variables:
 pool:
   name: Default
 
+  
+
 stages:
 
 # =========================
@@ -26,20 +28,26 @@ stages:
         versionSpec: '18.x'
       displayName: 'Install Node.js'
 
-    # Build React application
+    # Debug – show repo root (safe to keep or remove later)
+    - script: |
+        echo "===== REPO ROOT CONTENT ====="
+        dir $(Build.SourcesDirectory)
+      displayName: 'DEBUG: Show repo root'
+
+    # Install dependencies and build React app
     - script: |
         npm install
         npm run build
         echo "===== BUILD OUTPUT ====="
         dir
-      workingDirectory: '$(Build.SourcesDirectory)\react-frontend-demo'
+      workingDirectory: '$(Build.SourcesDirectory)'
       displayName: 'Install dependencies & build React app'
 
     # Archive React build folder
     - task: ArchiveFiles@2
       displayName: 'Archive React build'
       inputs:
-        rootFolderOrFile: '$(Build.SourcesDirectory)\react-frontend-demo\build'
+        rootFolderOrFile: '$(Build.SourcesDirectory)\build'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)\react-build.zip'
@@ -61,7 +69,7 @@ stages:
   jobs:
   - deployment: DeployReact
     displayName: 'Deploy React App'
-    environment: 'dev'
+    environment: 'production'
     strategy:
       runOnce:
         deploy:
