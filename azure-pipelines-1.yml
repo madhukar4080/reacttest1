@@ -1,0 +1,107 @@
+trigger:
+- main
+
+# =========================
+# RUNTIME PARAMETERS
+# =========================
+parameters:
+- name: environmentName
+  displayName: "Select environment"
+  type: string
+  default: qa
+  values:
+    - dev
+    - qa
+    - staging
+    - production
+
+variables:
+  azureSubscription: 'Azure subscription 1(1c29d824-9aa5-4286-9b2e-161e891c333f)'
+  webAppName: 'reacttest1'
+
+pool:
+  name: Default
+
+stages:
+
+# =========================
+# BUILD STAGE
+# =========================
+- stage: Build
+  displayName: 'Build React App'
+  jobs:
+  - job: Build
+    displayName: 'Build'
+    steps:
+
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - powershell: |
+        Write-Host "Searching for package.json..."
+        $pkg = Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse -Filter package.json | Select-Object -First 1
+
+        if (-not $pkg) {
+          Write-Error "package.json not found. This is not a React app repo."
+          exit 1
+        }
+
+        $appDir = $pkg.Directory.FullName
+        Write-Host "React app found at: $appDir"
+
+        Set-Location $appDir
+        npm install
+        npm run build
+
+        $buildDir = Join-Path $appDir "build"
+        if (-not (Test-Path $buildDir)) {
+          Write-Error "React build folder not created."
+          exit 1
+        }
+
+        Write-Host "Build directory: $buildDir"
+        Write-Host "##vso[task.setvariable variable=REACT_BUILD_DIR]$buildDir"
+      displayName: 'Locate & build React app'
+
+    - task: ArchiveFiles@2
+      displayName: 'Archive React build'
+      inputs:
+        rootFolderOrFile: '$(REACT_BUILD_DIR)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)\react-build.zip'
+        replaceExistingArchive: true
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifact'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+
+# =========================
+# DEPLOY STAGE
+# =========================
+- stage: Deploy
+  displayName: 'Deploy to Azure Web App'
+  dependsOn: Build
+
+  jobs:
+  - deployment: DeployReact
+    environment: ${{ parameters.environmentName }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - download: current
+            artifact: drop
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy to Azure Web App'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webApp'
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)\drop\react-build.zip'
