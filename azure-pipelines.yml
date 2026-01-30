@@ -2,8 +2,9 @@ trigger:
 - main
 
 variables:
-  azureSubscription: 'Azure subscription 1(1c29d824-9aa5-4286-9b2e-161e891c333f)'
-  webAppName: 'reacttest1'
+- group: Dev-Variable-Group
+#  azureSubscription: 'Azure subscription 1(1c29d824-9aa5-4286-9b2e-161e891c333f)'
+#  webAppName: 'reacttest1'
 
 pool:
   name: Default
@@ -16,6 +17,8 @@ stages:
 # =========================
 - stage: Build
   displayName: 'Build React App'
+  variables:
+  - group: Dev-Variable-Group
   jobs:
   - job: Build
     displayName: 'Build'
